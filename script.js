@@ -17,195 +17,83 @@ function createFallingHearts() {
     }, 500);
 }
 
-// Load ảnh từ thư mục memories - Album-based
-let albumsData = {}; // { albumName: [photo1, photo2, ...] }
-let currentPhotoIndex = {}; // { albumName: currentIndex }
+// Load ảnh từ thư mục memories - Single Album
+let memoryPhotos = [];
+let currentPhotoIndex = 0;
 
 function loadMemoryPhotos() {
-    const albumsContainer = document.getElementById("memories-albums");
-    const memoriesSection = albumsContainer.parentElement;
-    const imageExtensions = [".jpg", ".jpeg", ".png", ".webp"];
+    const albumContainer = document.getElementById("memories-album");
+    const memoriesSection = albumContainer.parentElement;
+    const imageExtensions = [".jpg", ".jpeg", ".png", ".webp", ".gif", ".bmp", ".svg", ".avif", ".tiff", ".tif", ".ico", ".heic", ".heif"];
+    
+    let photosFound = [];
+    let loadAttempts = 0;
+    const maxImages = 20; // Check tối đa 20 ảnh
+    const totalChecks = maxImages * imageExtensions.length;
+    
+    // Thử load ảnh trực tiếp từ thư mục memories/
+    for (let i = 1; i <= maxImages; i++) {
+        imageExtensions.forEach((ext) => {
+            const paddedNum = String(i).padStart(2, "0");
+            const path = `memories/${paddedNum}${ext}`;
 
-    // Các album cần kiểm tra (01-, 02-, 03-, v.v.)
-    const albumPatterns = [];
-    for (let i = 1; i <= 3; i++) {
-        // Chỉ check 3 album đầu để nhanh hơn
-        const paddedNum = String(i).padStart(2, "0");
-        albumPatterns.push(paddedNum);
-    }
-
-    let albumsLoaded = 0;
-    let totalAlbumsToCheck = albumPatterns.length;
-    let hasAnyAlbum = false;
-
-    albumPatterns.forEach((albumPrefix) => {
-        checkAndLoadAlbum(albumPrefix, imageExtensions).then((result) => {
-            albumsLoaded++;
-
-            if (result.hasImages) {
-                hasAnyAlbum = true;
-                const albumName = result.folderName;
-                albumsData[albumName] = result.photos;
-                currentPhotoIndex[albumName] = 0;
-
-                // Render album section
-                const albumSection = createAlbumSection(
-                    albumName,
-                    result.photos,
-                    result.displayName
-                );
-                albumsContainer.appendChild(albumSection);
-
-                // Show memories section khi có ảnh
-                memoriesSection.style.display = "block";
-            }
-
-            // Nếu load xong tất cả album
-            if (albumsLoaded === totalAlbumsToCheck) {
-                // Hide container nếu không có album nào
-                if (!hasAnyAlbum) {
-                    memoriesSection.style.display = "none";
+            const img = new Image();
+            img.onload = function () {
+                if (!photosFound.includes(path)) {
+                    photosFound.push(path);
                 }
-            }
+                loadAttempts++;
+                checkComplete();
+            };
+            img.onerror = function () {
+                loadAttempts++;
+                checkComplete();
+            };
+            img.src = path;
         });
-    });
-}
-
-function checkAndLoadAlbum(albumPrefix, imageExtensions) {
-    return new Promise((resolve) => {
-        let photosFound = [];
-        let loadAttempts = 0;
-        let loadComplete = false;
-        let foundFirstImage = false;
-        
-        // Mapping thư mục đúng tên
-        const albumFolders = {
-            "01": "01-ngay-gap-dau",
-            "02": "02-chu-ky-1-nam",
-            "03": "03-chuyen-di-du-lich"
-        };
-        
-        const folderName = albumFolders[albumPrefix];
-        if (!folderName) {
-            resolve({
-                hasImages: false,
-                photos: [],
-                folderName: albumPrefix,
-                displayName: generateDisplayName(albumPrefix),
-            });
-            return;
+    }
+    
+    function checkComplete() {
+        if (loadAttempts >= totalChecks) {
+            if (photosFound.length > 0) {
+                memoryPhotos = photosFound.sort();
+                currentPhotoIndex = 0;
+                
+                // Render album
+                const albumSection = createAlbumSection(memoryPhotos);
+                albumContainer.appendChild(albumSection);
+                memoriesSection.style.display = "block";
+            } else {
+                memoriesSection.style.display = "none";
+            }
         }
-
-        // Timeout ngắn hơn
-        const timeoutId = setTimeout(() => {
-            if (!loadComplete) {
-                loadComplete = true;
-                clearInterval(checkInterval);
-                const displayName = generateDisplayName(albumPrefix);
-                resolve({
-                    hasImages: photosFound.length > 0,
-                    photos: photosFound.sort(),
-                    folderName: albumPrefix,
-                    displayName: displayName,
-                });
+    }
+    
+    // Timeout để đảm bảo không chờ quá lâu
+    setTimeout(() => {
+        if (loadAttempts < totalChecks) {
+            if (photosFound.length > 0) {
+                memoryPhotos = photosFound.sort();
+                currentPhotoIndex = 0;
+                const albumSection = createAlbumSection(memoryPhotos);
+                albumContainer.appendChild(albumSection);
+                memoriesSection.style.display = "block";
+            } else {
+                memoriesSection.style.display = "none";
             }
-        }, 1500);
-
-        const maxImages = 10; // Check tối đa 10 ảnh
-        let totalChecks = maxImages * imageExtensions.length;
-        
-        // Thử load ảnh từ thư mục với tên chính xác
-        for (let i = 1; i <= maxImages; i++) {
-            imageExtensions.forEach((ext) => {
-                const paddedNum = String(i).padStart(2, "0");
-                const path = `memories/${folderName}/${paddedNum}${ext}`;
-
-                const img = new Image();
-                img.onload = function () {
-                    if (!photosFound.includes(path)) {
-                        photosFound.push(path);
-                    }
-                    loadAttempts++;
-                    if (!foundFirstImage) {
-                        foundFirstImage = true;
-                    }
-                };
-                img.onerror = function () {
-                    loadAttempts++;
-                };
-                img.src = path;
-            });
         }
-
-        // Nếu tìm được ảnh, resolve ngay để không phải chờ
-        const quickCheckInterval = setInterval(() => {
-            if (foundFirstImage && photosFound.length > 0 && !loadComplete) {
-                clearInterval(quickCheckInterval);
-                clearTimeout(timeoutId);
-                loadComplete = true;
-                const displayName = generateDisplayName(albumPrefix);
-                resolve({
-                    hasImages: photosFound.length > 0,
-                    photos: photosFound.sort(),
-                    folderName: albumPrefix,
-                    displayName: displayName,
-                });
-            }
-        }, 100);
-
-        // Kiểm tra xem load xong chưa
-        const checkInterval = setInterval(() => {
-            if (loadAttempts >= totalChecks) {
-                clearInterval(checkInterval);
-                clearInterval(quickCheckInterval);
-                clearTimeout(timeoutId);
-                if (!loadComplete) {
-                    loadComplete = true;
-                    const displayName = generateDisplayName(albumPrefix);
-                    resolve({
-                        hasImages: photosFound.length > 0,
-                        photos: photosFound.sort(),
-                        folderName: albumPrefix,
-                        displayName: displayName,
-                    });
-                }
-            }
-        }, 200);
-    });
+    }, 2000);
 }
 
-function generateDisplayName(albumPrefix) {
-    // Mapping chuẩn cho các album
-    const albumNames = {
-        "01": "Ngày Gặp Đầu",
-        "02": "Chủ Kỳ 1 Năm",
-        "03": "Chuyến Du Lịch",
-        "04": "Ngoài Trò",
-        "05": "Kỷ Niệm Đặc Biệt",
-        "06": "Những Ngày Thường",
-        "07": "Album Thêm",
-        "08": "Album Thêm",
-        "09": "Album Thêm",
-        10: "Album Thêm",
-    };
-    return albumNames[albumPrefix] || `Album ${albumPrefix}`;
-}
-
-function createAlbumSection(albumKey, photos, displayName) {
+function createAlbumSection(photos) {
     const section = document.createElement("div");
     section.className = "album-section";
-    section.id = `album-${albumKey}`;
 
     // Nếu không có ảnh, ẩn section
     if (photos.length === 0) {
         section.classList.add("hidden");
+        return section;
     }
-
-    // Album title
-    const title = document.createElement("h3");
-    title.className = "album-title";
-    title.textContent = `📷 ${displayName}`;
-    section.appendChild(title);
 
     // Carousel wrapper
     const carouselWrapper = document.createElement("div");
@@ -215,19 +103,19 @@ function createAlbumSection(albumKey, photos, displayName) {
     const prevBtn = document.createElement("button");
     prevBtn.className = "carousel-btn carousel-prev";
     prevBtn.innerHTML = "❮";
-    prevBtn.addEventListener("click", () => previousPhoto(albumKey));
+    prevBtn.addEventListener("click", () => previousPhoto());
 
     // Container ảnh
     const carouselContainer = document.createElement("div");
     carouselContainer.className = "carousel-container";
 
     const carouselImage = document.createElement("img");
-    carouselImage.id = `carousel-image-${albumKey}`;
+    carouselImage.id = "carousel-image";
     carouselImage.className = "carousel-image";
     carouselImage.src = photos[0];
     carouselImage.alt = "Ảnh kỷ niệm";
     carouselImage.addEventListener("click", () => {
-        openPhotoModal(photos[currentPhotoIndex[albumKey]]);
+        openPhotoModal(photos[currentPhotoIndex]);
     });
 
     carouselContainer.appendChild(carouselImage);
@@ -236,17 +124,17 @@ function createAlbumSection(albumKey, photos, displayName) {
     const nextBtn = document.createElement("button");
     nextBtn.className = "carousel-btn carousel-next";
     nextBtn.innerHTML = "❯";
-    nextBtn.addEventListener("click", () => nextPhoto(albumKey));
+    nextBtn.addEventListener("click", () => nextPhoto());
 
     // Dots indicator
     const dotsContainer = document.createElement("div");
     dotsContainer.className = "carousel-dots";
-    dotsContainer.id = `carousel-dots-${albumKey}`;
+    dotsContainer.id = "carousel-dots";
 
     for (let i = 0; i < photos.length; i++) {
         const dot = document.createElement("button");
         dot.className = "carousel-dot" + (i === 0 ? " active" : "");
-        dot.addEventListener("click", () => goToPhoto(albumKey, i));
+        dot.addEventListener("click", () => goToPhoto(i));
         dotsContainer.appendChild(dot);
     }
 
@@ -261,36 +149,29 @@ function createAlbumSection(albumKey, photos, displayName) {
 }
 
 // Điều hướng carousel
-function nextPhoto(albumKey) {
-    const photos = albumsData[albumKey];
-    currentPhotoIndex[albumKey] =
-        (currentPhotoIndex[albumKey] + 1) % photos.length;
-    updateCarousel(albumKey);
+function nextPhoto() {
+    currentPhotoIndex = (currentPhotoIndex + 1) % memoryPhotos.length;
+    updateCarousel();
 }
 
-function previousPhoto(albumKey) {
-    const photos = albumsData[albumKey];
-    currentPhotoIndex[albumKey] =
-        (currentPhotoIndex[albumKey] - 1 + photos.length) % photos.length;
-    updateCarousel(albumKey);
+function previousPhoto() {
+    currentPhotoIndex = (currentPhotoIndex - 1 + memoryPhotos.length) % memoryPhotos.length;
+    updateCarousel();
 }
 
-function goToPhoto(albumKey, index) {
-    currentPhotoIndex[albumKey] = index;
-    updateCarousel(albumKey);
+function goToPhoto(index) {
+    currentPhotoIndex = index;
+    updateCarousel();
 }
 
-function updateCarousel(albumKey) {
-    const photos = albumsData[albumKey];
-    const carouselImage = document.getElementById(`carousel-image-${albumKey}`);
-    const dots = document.querySelectorAll(
-        `#carousel-dots-${albumKey} .carousel-dot`
-    );
+function updateCarousel() {
+    const carouselImage = document.getElementById("carousel-image");
+    const dots = document.querySelectorAll("#carousel-dots .carousel-dot");
 
-    carouselImage.src = photos[currentPhotoIndex[albumKey]];
+    carouselImage.src = memoryPhotos[currentPhotoIndex];
 
     dots.forEach((dot, index) => {
-        if (index === currentPhotoIndex[albumKey]) {
+        if (index === currentPhotoIndex) {
             dot.classList.add("active");
         } else {
             dot.classList.remove("active");
@@ -453,10 +334,10 @@ document.addEventListener("DOMContentLoaded", () => {
 
         // Hiển thị nội dung quà đã mở khi khôi phục
         const giftMessages = [
-            "💝 Em là tình yêu của anh",
-            "💝 Em là hạnh phúc của anh",
-            "💝 Em là tất cả của anh",
-            "💝 Em là mãi mãi của anh",
+            "💝 Một điều ước với anh",
+            "💝 Một điều ước với anh",
+            "💝 Một điều ước với anh",
+            "💝 Một điều ước với anh",
         ];
         
         // Icon khớp với từng hộp quà
@@ -536,16 +417,16 @@ function openGift(giftNumber) {
         if (openedGiftNumber === giftNumber) {
             showGiftModal("Thông báo", "Quà này đã mở rồi! 💝");
         } else {
-            showGiftModal("Thông báo", "Bạn chỉ được mở 1 phần quà thôi! 💝");
+            showGiftModal("Thông báo", "Em chỉ được mở 1 phần quà thôi! 💝");
         }
         return;
     }
 
     const giftMessages = [
-        "💝 Em là tình yêu của anh",
-        "💝 Em là hạnh phúc của anh",
-        "💝 Em là tất cả của anh",
-        "💝 Em là mãi mãi của anh",
+        "💝 Một điều ước với anh",
+        "💝 Một điều ước với anh",
+        "💝 Một điều ước với anh",
+        "💝 Một điều ước với anh",
     ];
 
     const giftBox = document.querySelectorAll(".gift-box")[giftNumber - 1];

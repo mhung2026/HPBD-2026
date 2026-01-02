@@ -793,13 +793,13 @@ input {
     }
 
     .carousel-dots {
-        gap: 8px;
-        margin-top: 15px;
+        gap: 3px;
+        margin-top: 10px;
     }
 
     .carousel-dot {
-        width: 10px;
-        height: 10px;
+        width: 3px;
+        height: 3px;
     }
 
     .memory-item {
@@ -1188,7 +1188,7 @@ input {
 }
 
 /* Album Container */
-.memories-albums {
+.memories-album {
     display: flex;
     flex-direction: column;
     gap: 40px;
@@ -1228,7 +1228,7 @@ input {
     align-items: center;
     gap: 15px;
     width: 100%;
-    max-width: 600px;
+    max-width: 500px;
     margin: 0 auto;
 }
 
@@ -1238,7 +1238,7 @@ input {
     overflow: hidden;
     border-radius: 20px;
     box-shadow: 0 10px 30px rgba(255, 107, 157, 0.2);
-    aspect-ratio: 1;
+    aspect-ratio: 4/5;
     background: rgba(255, 255, 255, 0.1);
 }
 
@@ -1282,18 +1282,18 @@ input {
 
 .carousel-dots {
     display: flex;
-    gap: 10px;
-    margin-top: 20px;
+    gap: 3px;
+    margin-top: 10px;
     justify-content: center;
     flex-wrap: wrap;
 }
 
 .carousel-dot {
-    width: 12px;
-    height: 12px;
+    width: 4px;
+    height: 4px;
     border-radius: 50%;
-    border: 2px solid #ffb3d1;
-    background: transparent;
+    border: none;
+    background: rgba(255, 179, 209, 0.5);
     cursor: pointer;
     transition: all 0.3s ease;
 }
@@ -1305,7 +1305,7 @@ input {
 
 .carousel-dot:hover {
     background: #ff9db5;
-    transform: scale(1.15);
+    transform: scale(1.2);
 }
 
 /* Gallery ảnh từ thư mục memories */
