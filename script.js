@@ -21,68 +21,50 @@ function createFallingHearts() {
 let memoryPhotos = [];
 let currentPhotoIndex = 0;
 
+// Danh sách ảnh đã biết trước để tránh request thừa
+const KNOWN_PHOTOS = [
+    "memories/01.jpg",
+    "memories/02.jpg",
+    "memories/03.jpg",
+    "memories/04.jpg",
+    "memories/05.jpg",
+    "memories/06.jpg",
+    "memories/07.jpg",
+    "memories/08.jpg",
+    "memories/09.jpg"
+];
+
 function loadMemoryPhotos() {
     const albumContainer = document.getElementById("memories-album");
     const memoriesSection = albumContainer.parentElement;
-    const imageExtensions = [".jpg", ".jpeg", ".png", ".webp", ".gif", ".bmp", ".svg", ".avif", ".tiff", ".tif", ".ico", ".heic", ".heif"];
     
-    let photosFound = [];
-    let loadAttempts = 0;
-    const maxImages = 20; // Check tối đa 20 ảnh
-    const totalChecks = maxImages * imageExtensions.length;
+    // Sử dụng danh sách ảnh đã biết
+    memoryPhotos = KNOWN_PHOTOS;
+    currentPhotoIndex = 0;
     
-    // Thử load ảnh trực tiếp từ thư mục memories/
-    for (let i = 1; i <= maxImages; i++) {
-        imageExtensions.forEach((ext) => {
-            const paddedNum = String(i).padStart(2, "0");
-            const path = `memories/${paddedNum}${ext}`;
+    if (memoryPhotos.length > 0) {
+        // Preload ảnh đầu tiên và các ảnh tiếp theo
+        preloadImages(memoryPhotos);
+        
+        // Render album
+        const albumSection = createAlbumSection(memoryPhotos);
+        albumContainer.appendChild(albumSection);
+        memoriesSection.style.display = "block";
+    } else {
+        memoriesSection.style.display = "none";
+    }
+}
 
-            const img = new Image();
-            img.onload = function () {
-                if (!photosFound.includes(path)) {
-                    photosFound.push(path);
-                }
-                loadAttempts++;
-                checkComplete();
-            };
-            img.onerror = function () {
-                loadAttempts++;
-                checkComplete();
-            };
-            img.src = path;
-        });
-    }
-    
-    function checkComplete() {
-        if (loadAttempts >= totalChecks) {
-            if (photosFound.length > 0) {
-                memoryPhotos = photosFound.sort();
-                currentPhotoIndex = 0;
-                
-                // Render album
-                const albumSection = createAlbumSection(memoryPhotos);
-                albumContainer.appendChild(albumSection);
-                memoriesSection.style.display = "block";
-            } else {
-                memoriesSection.style.display = "none";
-            }
+// Preload ảnh để chuyển ảnh mượt hơn
+function preloadImages(photos) {
+    photos.forEach((src, index) => {
+        const img = new Image();
+        // Ưu tiên load 3 ảnh đầu tiên
+        if (index < 3) {
+            img.loading = "eager";
         }
-    }
-    
-    // Timeout để đảm bảo không chờ quá lâu
-    setTimeout(() => {
-        if (loadAttempts < totalChecks) {
-            if (photosFound.length > 0) {
-                memoryPhotos = photosFound.sort();
-                currentPhotoIndex = 0;
-                const albumSection = createAlbumSection(memoryPhotos);
-                albumContainer.appendChild(albumSection);
-                memoriesSection.style.display = "block";
-            } else {
-                memoriesSection.style.display = "none";
-            }
-        }
-    }, 2000);
+        img.src = src;
+    });
 }
 
 function createAlbumSection(photos) {
@@ -114,6 +96,8 @@ function createAlbumSection(photos) {
     carouselImage.className = "carousel-image";
     carouselImage.src = photos[0];
     carouselImage.alt = "Ảnh kỷ niệm";
+    carouselImage.loading = "eager"; // Load ảnh đầu tiên ngay lập tức
+    carouselImage.decoding = "async"; // Decode không block UI
     carouselImage.addEventListener("click", () => {
         openPhotoModal(photos[currentPhotoIndex]);
     });
